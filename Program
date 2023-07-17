@@ -1,0 +1,243 @@
+###########FEITO UTILIZANDO ANACONTA PY###########
+
+import pandas as pd
+import numpy as np
+#Recebe os dados e transforma em variáveis 
+dados1 = pd.read_csv('dados/ca-2021-01.csv', sep=';', encoding='latin-1')
+dados2 = pd.read_csv('dados/ca-2021-02.csv', sep=';', encoding='latin-1')
+dados3 = pd.read_csv('dados/ca-2022-01.csv', sep=';')
+dados4 = dados1.merge(dados2, how='outer')
+dados = dados4.merge(dados3, how='outer')
+
+#Altera os nomes das colunas
+dados.rename(columns={'Estado - Sigla':'Estado'}, inplace = True)
+dados.rename(columns={'Data da Coleta':'Data'}, inplace = True)
+dados.rename(columns={'ï»¿Regiao - Sigla':'Região'}, inplace = True)
+
+#Muda as colunas conforme nossa necessidade para melhor visualização e facilidade 
+na hora de buscar dados
+dados['Data'] = pd.to_datetime(dados['Data'])
+
+#Seta a coluna DATA para tipo DATETIME (para filtrar os periodos desejados mais a 
+frente.)
+#Converte a coluna Valor de Venda para FLOAT para realizar operações matemática
+dados['Valor de Venda'] = dados['Valor de Venda'].str.replace(',','.').astype(float)
+#Printa o total de linhas com dados temos e mostra quantas colunas
+print(f'A Base de dados apresenta {dados.shape[0]} registros de vendas de 
+combustivel e {dados.shape[1]} Colunas com informacoes')
+#Busca e filtra por data, estado, município e produto solicitado
+18
+#FUNCAO RESPONSAVEL POR RECEBER O BANCO DE DADOS E REALZIAR O 
+FILTRO DE ACORDO COM A SOLICITAÇÃO
+def recebeDados(bancoDados):
+ dataInicio = input('Data inicio desejada (AAAA-MM-DD): ')
+ dataTermino = input('Data final desejada (AAAA-MM-DD):')
+ produto = input('Informe o Produto Solicitado: ')
+ estado = input('Informe o Estado Solicitado: ')
+ municipio = input('Informe o Municipio: ')
+ dfVariaveis = bancoDados
+ filtroData = bancoDados[(bancoDados['Data'] >= dataInicio) & (bancoDados['Data'] 
+<= dataTermino)]
+ filtroProduto = bancoDados[(bancoDados['Produto'] == produto)]
+ filtroEstado = bancoDados[(bancoDados['Estado'] == estado)] 
+ if (estado.upper() == 'TODOS') and (produto.upper() == 'TODOS') and 
+(municipio.upper() == 'TODOS'):
+ dfVariaveis = filtroData
+ elif produto.upper() == 'TODOS' and municipio.upper() == 'TODOS':
+ dfVariaveis = bancoDados[(bancoDados['Estado'] == estado.upper())]
+ elif produto.upper() == 'TODOS':
+ dfVariaveis = filtroData[(filtroData['Estado'] == estado.upper()) & 
+(filtroData['Municipio'] == municipio.upper())]
+ elif estado.upper() == 'TODOS':
+ dfVariaveis = filtroData[(filtroData['Produto'] == produto.upper())]
+ elif municipio.upper() == 'TODOS':
+ dfVariaveis = filtroData[(filtroData['Produto'] == produto.upper()) & 
+(filtroData['Estado'] == estado.upper())]
+ else:
+ dfVariaveis = filtroData[(filtroData['Produto'] == produto.upper()) & 
+(filtroData['Estado'] == estado.upper()) & (filtroData['Municipio'] == municipio.upper())]
+ return dfVariaveis
+19
+#chama a função que solicita os dados e retorna um DataFrame com os filtros 
+aplicados.
+dfSelect = recebeDados(dados)
+listaValores = dfSelect['Valor de Venda'].tolist()
+listaProdutos = dfSelect['Produto'].drop_duplicates().tolist()
+menor = listaValores[0]
+maior = listaValores[0]
+imenor = 0
+imaior = 0
+soma = 0
+media = 0
+#Verifica todos os itens para validar qual o maior e qual o menor e coleta o 
+índice para mostrar as informações dentro do DataFrame
+#CASO A SELECAO DE PRODUTOS FOR DIFERENTE DE TODOS, 
+RETORNA A MÉDIA DO PRODUTO.
+for i in range (len(listaValores)):
+ if len(listaProdutos) == 1:
+ soma+= listaValores[i]
+ if menor > listaValores[i]:
+ menor = listaValores[i]
+ imenor = i
+ if maior < listaValores[i]:
+ maior = listaValores[i]
+ imaior = i
+media = soma/len(listaValores)
+#EXIBE O MAIOR, MENOR, VARIACAO, MEDIA E POSTOS DE COMBUSTIVEIS 
+COM PREÇOS ABAIXO DA MÉDIA COM SEUS RESPECTIVOS VALORES
+#EXIBE O AUTOPOSTO COM MAIOR PRECO DO PRODUTO SOLICITADO
+prod = dfSelect['Produto'].tolist()
+prod = prod[imaior]
+est = dfSelect['Estado'].tolist()
+20
+est = est[imaior]
+print(f"O maior preço da(o) {prod} está localizado no estado {est} é R$:{maior:.3}")
+print('')
+print(dfSelect.iloc[imaior])
+#EXIBE O AUTOPOSTO COM MENOR PRECO DO PRODUTO SOLICITADO
+prod = dfSelect['Produto'].tolist()
+prod = prod[imenor]
+est = dfSelect['Estado'].tolist()
+est = est[imenor]
+print(f"O menor preço da(o) {prod} está localizado no estado: {est} é R$:{menor:.3}")
+print('')
+print(dfSelect.iloc[imenor])
+#VARIACAO DO PRECO DO COMBUSTIVEL (VALIDO APENAS PARA 
+COMBUSTIVEIS SIMILARES)
+variacao = maior - menor
+print(f'a variação do preço da(o) {prod} é de R$: {variacao:.3}')
+#MEDIA DO PREÇO NO(OS) ESTADO(OS) E COMBUSTIVEL SOLICITADO 
+(VALIDO APENAS PARA COMBUSTIVEIS SIMILARES)
+print(f'a média do preço da(o) {prod} é de R$: {media:.3}')
+#FORNECEDORES COM VALOR DE VENDA ABAIXO DA MÉDIA DE PREÇO
+listaAutoPosto = dfSelect['Revenda'].tolist()
+listaMenorMedia = []
+listaNomeMenorAutoPosto = []
+countMenorMedia = []
+MatrizMenorAutoPosto = []
+for i in range (len(listaValores)):
+ if listaValores[i] < media:
+ listaMenorMedia.append(listaValores[i])
+ countMenorMedia.append(i)
+ listaNomeMenorAutoPosto.append(listaAutoPosto[i])
+21
+ 
+#Cria arrays onde recebe valores do combustivel e outra com valores da média,
+#subtrai uma da outra para encontrar o valor desejado
+arrPrecoAbaixoMedia = np.array(listaMenorMedia)
+arrMediaPreco = np.full((len(listaMenorMedia)), media)
+arrDiferencaPreco = arrMediaPreco -arrPrecoAbaixoMedia
+MatrizMenorAutoPosto.append(listaNomeMenorAutoPosto)
+MatrizMenorAutoPosto.append(listaMenorMedia)
+MatrizMenorAutoPosto.append(arrDiferencaPreco)
+#Cria um DataFrame com os postos com valor abaixo da média
+dfMatriz = pd.DataFrame(MatrizMenorAutoPosto)
+dfMatriz = dfMatriz.T
+dfMatriz.columns = ['Fornecedor', 'Valor Atual','Diferença da Média']
+dfMatriz.head(21).style.set_table_styles([dict(selector='th', props=[('text-align', 'left')]),
+ dict(selector='td', props=[('text-align', 'left')])])
+#No caso de escolher vários produtos de um estado específico, abaixo pode verificar 
+a analise breve dos três principais combustíveis do mesmo
+#Gasolina
+filtroProdutoGasolina = dfSelect[(dfSelect['Produto'] == 'GASOLINA')]
+listaValoresGasolina = filtroProdutoGasolina['Valor de Venda'].tolist()
+valorGasolina = 0
+menorGasolina = listaValoresGasolina[0]
+imenorGasolina = 0
+maiorGasolina = listaValoresGasolina[0]
+imaiorGasolina = 0
+22
+soma = 0
+media = 0
+for i in range (len(listaValoresGasolina)):
+ soma+= listaValoresGasolina[i]
+ if menorGasolina > listaValoresGasolina[i]:
+ menorGasolina = listaValoresGasolina[i]
+ imenorGasolina = i
+ if maiorGasolina < listaValoresGasolina[i]:
+ maiorGasolina = listaValoresGasolina[i]
+ imaiorGasolina = i
+media = soma/len(listaValoresGasolina)
+prod = filtroProdutoGasolina['Produto'].tolist()
+prod = prod[imaiorGasolina]
+est = filtroProdutoGasolina['Estado'].tolist()
+est = est[imaiorGasolina]
+print(f"O maior preço da(o) {prod} no estado {est} é R$:{maiorGasolina:.3}")
+print('')
+print(filtroProdutoGasolina.iloc[imaiorGasolina])
+print(f"O maior preço da(o) {prod} no estado {est} é R$:{menorGasolina:.3}")
+print('')
+print(filtroProdutoGasolina.iloc[imenorGasolina])
+print(f"A MÉDIA DO PREÇO DO(A) {prod} NO ESTADO {est} é {media:.3}")
+#VARIACAO DO PRECO DO COMBUSTIVEL
+variacao = maiorGasolina - menorGasolina
+print(f'a variação do preço da(o) {prod} no {est} é de R$: {variacao:.3}')
+#Etanol
+filtroProdutoEtanol = dfSelect[(dfSelect['Produto'] == 'ETANOL')]
+23
+listaValoresEtanol = filtroProdutoEtanol['Valor de Venda'].tolist()
+valorEtanol = 0
+menorEtanol = listaValoresEtanol[0]
+imenorEtanol = 0
+maiorEtanol = listaValoresEtanol[0]
+imaiorEtanol = 0
+soma = 0
+media = 0
+for i in range (len(listaValoresEtanol)):
+ soma+= listaValoresEtanol[i]
+ if menorEtanol > listaValoresEtanol[i]:
+ menorEtanol = listaValoresEtanol[i]
+ imenorEtanol = i
+ if maiorEtanol < listaValoresEtanol[i]:
+ maiorEtanol = listaValoresEtanol[i]
+ imaiorEtanol = i
+media = soma/len(listaValoresEtanol)
+prod = filtroProdutoEtanol['Produto'].tolist()
+prod = prod[imaiorEtanol]
+est = filtroProdutoEtanol['Estado'].tolist()
+est = est[imaiorEtanol]
+print(f"O maior preço da(o) {prod} no estado {est} é R$:{maiorEtanol:.3}")
+print('')
+print(filtroProdutoEtanol.iloc[imaiorEtanol])
+print(f"O maior preço da(o) {prod} no estado {est} é R$:{menorEtanol:.3}")
+print('')
+print(filtroProdutoEtanol.iloc[imenorEtanol])
+print(f"A MÉDIA DO PREÇO DO(A) {prod} NO ESTADO {est} é {media:.3}")
+#VARIACAO DO PRECO DO COMBUSTIVEL
+24
+variacao = maiorEtanol - menorEtanol
+print(f'a variação do preço da(o) {prod} no {est} é de R$: {variacao:.3}')
+#Diesel
+filtroProdutoDiesel = dfSelect[(dfSelect['Produto'] == 'DIESEL')]
+listaValoresDiesel = filtroProdutoDiesel['Valor de Venda'].tolist()
+valorDiesel = 0
+menorDiesel = listaValoresEtanol[0]
+imenorDiesel = 0
+maiorDiesel = listaValoresEtanol[0]
+imaiorDiesel = 0
+soma = 0
+media = 0
+for i in range (len(listaValoresDiesel)):
+ soma+= listaValoresDiesel[i]
+ if menorDiesel > listaValoresDiesel[i]:
+ menorDiesel = listaValoresDiesel[i]
+ imenorDiesel = i
+ if maiorDiesel < listaValoresDiesel[i]:
+ maiorDiesel = listaValoresDiesel[i]
+ imaiorDiesel = i
+media = soma/len(listaValoresDiesel)
+prod = filtroProdutoDiesel['Produto'].tolist()
+prod = prod[imaiorDiesel]
+est = filtroProdutoDiesel['Estado'].tolist()
+est = est[imaiorDiesel]
+print(f"O maior preço da(o) {prod} no estado {est} é R$:{maiorDiesel:.3}")
+print('')
+print(filtroProdutoDiesel.iloc[imaiorDiesel])
+25
+print(f"O maior preço da(o) {prod} no estado {est} é R$:{menorDiesel:.3}")
+print('')
+print(filtroProdutoDiesel.iloc[imenorDiesel])
+print(f"A MÉDIA DO PREÇO DO(A) {prod} NO ESTADO {est} é {media:.3}")
+#VARIACAO DO PRECO DO COMBUSTIVEL
+variacao = maiorEtanol - menorEtanol
+print(f'a variação do preço da(o) {prod} no {est} é de R$: {variacao:.3}')
